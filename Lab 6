@@ -1,0 +1,231 @@
+# ML Lab 6
+
+from google.colab import files
+uploaded = files.upload()
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    classification_report,
+    confusion_matrix
+)
+
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+df = pd.read_csv('seeds_new (1).csv')
+
+df = df.dropna(axis=1, how='all')
+
+df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
+
+df.head()
+
+df.tail()
+
+df.shape
+
+df.info()
+
+df.columns
+
+df.describe()
+
+df.isnull().sum()
+
+df.dtypes
+
+df.duplicated().sum
+
+X = df.drop("Class (1, 2, 3)", axis=1)
+y_original = df["Class (1, 2, 3)"]
+
+print("Input shape:", X.shape)
+print("Target shape:", y_original.shape)
+
+y = y_original - 1
+
+print("Original classes:")
+print(sorted(y_original.unique()))
+
+print("\nANN encoded classes:")
+print(sorted(y.unique()))
+
+X = X.fillna(X.mean())
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42
+)
+
+scaler = StandardScaler()
+
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+print("X_train_scaled shape:", X_train_scaled.shape)
+print("X_test_scaled shape:", X_test_scaled.shape)
+print("y_train shape:", y_train.shape)
+print("y_test shape:", y_test.shape)
+
+scaler = StandardScaler()
+
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+scaler.fit_transform(X_test)
+
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.models import Sequential
+
+model = Sequential([
+    Input(shape=(7,)),
+    Dense(16, activation='relu'),
+    Dense(8, activation='relu'),
+    Dense(3, activation='softmax')
+])
+
+model.summary()
+
+model.compile(
+    optimizer=Adam(learning_rate=0.001),
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"]
+)
+
+loss = "sparse_categorical_crossentropy"
+
+early_stop = EarlyStopping(
+    monitor="val_loss",
+    patience=10,
+    restore_best_weights=True
+)
+
+history = model.fit(
+    X_train_scaled,
+    y_train,
+    validation_data=(X_test_scaled, y_test),
+    epochs=100,
+    batch_size=16,
+    callbacks=[early_stop],
+    verbose=1
+)
+
+plt.figure(figsize=(8, 5))
+plt.plot(history.history["accuracy"], label="Training Accuracy")
+plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
+plt.title("ANN Training and Validation Accuracy")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(8, 5))
+plt.plot(history.history["loss"], label="Training loss")
+plt.plot(history.history["val_loss"], label="Validation loss")
+plt.title("ANN Training and Validation loss")
+plt.xlabel("Epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+test_loss, test_accuracy = model.evaluate(
+    X_test_scaled,
+    y_test,
+    verbose=1
+)
+
+print("Test Loss:", test_loss)
+print("Test Accuracy:", test_accuracy)
+
+y_prob = model.predict(X_test_scaled, verbose=1)
+
+print(y_prob[:5])
+
+y_pred = np.argmax(y_prob, axis=1)
+
+print("Predicted encoded classes:")
+print(y_pred[:10])
+
+y_pred_original = y_pred + 1
+y_test_original = y_test + 1
+
+print("Predicted classes:")
+print(y_pred_original[:10])
+
+comparison = pd.DataFrame({
+    "Actual Class": y_test_original.values,
+    "Predicted Class": y_pred_original
+})
+
+print(comparison.head(15))
+
+accuracy = accuracy_score(
+    y_test_original,
+    y_pred_original
+)
+
+precision = precision_score(
+    y_test_original,
+    y_pred_original,
+    average="weighted"
+)
+
+recall = recall_score(
+    y_test_original,
+    y_pred_original,
+    average="weighted"
+)
+
+f1 = f1_score(
+    y_test_original,
+    y_pred_original,
+    average="weighted"
+)
+
+print(f"Accuracy: {accuracy}")
+print(f"Precision: {precision}")
+print(f"Recall: {recall}")
+print(f"F1 Score: {f1}")
+
+print(classification_report(y_test_original, y_pred_original))
+
+cm = confusion_matrix(y_test_original, y_pred_original)
+
+print(cm)
+
+area = float(input("Enter Area: "))
+perimeter = float(input("Enter Perimeter: "))
+compactness = float(input("Enter Compactness: "))
+length = float(input("Enter Kernel Length: "))
+width = float(input("Enter Kernel Width: "))
+asymmetry = float(input("Enter Asymmetry: "))
+groove = float(input("Enter Groove Length: "))
+
+predict_new_seed = [
+    area,
+    perimeter,
+    compactness,
+    length,
+    width,
+    asymmetry,
+    groove
+]
+
+2.
