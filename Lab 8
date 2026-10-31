@@ -1,0 +1,240 @@
+# ML Lab 8
+# Saujanya Chaturvedi
+# C_C1_02
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    classification_report,
+    confusion_matrix,
+    ConfusionMatrixDisplay
+)
+import warnings
+warnings.filterwarnings('ignore')
+
+# ---------- Load data ----------
+from google.colab import files
+uploaded = files.upload()
+
+df = pd.read_csv("ai4i2020.csv")
+
+# ---------- Explore data ----------
+df.head()
+df.tail()
+df.shape
+df.info()
+df.columns
+df.describe()
+df.isnull().sum()
+df.duplicated().sum()
+
+# ---------- Features and target ----------
+X = df[
+    [
+        "Type",
+        "Air temperature [K]",
+        "Process temperature [K]",
+        "Rotational speed [rpm]",
+        "Torque [Nm]",
+        "Tool wear [min]"
+    ]
+]
+y = df["Machine failure"]
+
+print("Input shape:", X.shape)
+print("Output shape:", y.shape)
+
+categorical_features = ["Type"]
+numerical_features = [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]"
+]
+
+# ---------- Train/test split ----------
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+print("Training samples:", X_train.shape[0])
+print("Testing samples:", X_test.shape[0])
+
+# ---------- Preprocessing ----------
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), numerical_features),
+        ("cat", OneHotEncoder(), categorical_features)
+    ]
+)
+
+# ---------- Linear SVM ----------
+linear_svm = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", SVC(kernel="linear"))
+    ]
+)
+linear_svm.fit(X_train, y_train)
+
+y_pred_linear = linear_svm.predict(X_test)
+
+accuracy_linear = accuracy_score(y_test, y_pred_linear)
+precision_linear = precision_score(y_test, y_pred_linear, zero_division=0)
+recall_linear = recall_score(y_test, y_pred_linear, zero_division=0)
+f1_linear = f1_score(y_test, y_pred_linear, zero_division=0)
+
+print("Linear SVM Metrics:")
+print("Accuracy:", accuracy_linear)
+print("Precision:", precision_linear)
+print("Recall:", recall_linear)
+print("F1 Score:", f1_linear)
+
+print(classification_report(y_test, y_pred_linear, target_names=["No Failure", "Failure"]))
+
+cm_linear = confusion_matrix(y_test, y_pred_linear)
+plt.figure(figsize=(6, 5))
+sns.heatmap(
+    cm_linear,
+    annot=True,
+    fmt="d",
+    cmap="Reds",
+    xticklabels=["No Failure", "Failure"],
+    yticklabels=["No Failure", "Failure"]
+)
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix - Linear SVM")
+plt.show()
+
+# ---------- RBF SVM ----------
+rbf_svm = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", SVC(kernel="rbf"))
+    ]
+)
+rbf_svm.fit(X_train, y_train)
+print("RBF SVM training completed.")
+
+y_pred_rbf = rbf_svm.predict(X_test)
+
+accuracy_rbf = accuracy_score(y_test, y_pred_rbf)
+precision_rbf = precision_score(y_test, y_pred_rbf, zero_division=0)
+recall_rbf = recall_score(y_test, y_pred_rbf, zero_division=0)
+f1_rbf = f1_score(y_test, y_pred_rbf, zero_division=0)
+
+print("RBF SVM Metrics:")
+print("Accuracy:", accuracy_rbf)
+print("Precision:", precision_rbf)
+print("Recall:", recall_rbf)
+print("F1 Score:", f1_rbf)
+
+print(classification_report(y_test, y_pred_rbf, target_names=["No Failure", "Failure"]))
+
+cm_rbf = confusion_matrix(y_test, y_pred_rbf)
+plt.figure(figsize=(6, 5))
+sns.heatmap(
+    cm_rbf,
+    annot=True,
+    fmt="d",
+    cmap="Reds",
+    xticklabels=["No Failure", "Failure"],
+    yticklabels=["No Failure", "Failure"]
+)
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix - RBF SVM")
+plt.show()
+
+# ---------- Comparison of Linear vs RBF ----------
+comparison = pd.DataFrame({
+    'Model': ['Linear SVM', 'RBF SVM'],
+    'Accuracy': [accuracy_linear, accuracy_rbf],
+    'Precision': [precision_linear, precision_rbf],
+    'Recall': [recall_linear, recall_rbf],
+    'F1 Score': [f1_linear, f1_rbf]
+})
+comparison
+
+# ---------- Hyperparameter tuning ----------
+pipeline = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", SVC())
+    ]
+)
+
+# Note: double underscore (classifier__param) is required for pipeline params
+param_grid = [
+    {
+        "classifier__kernel": ["linear"],
+        "classifier__C": [0.1, 1, 10, 100]
+    },
+    {
+        "classifier__kernel": ["rbf"],
+        "classifier__C": [0.1, 1, 10, 100],
+        "classifier__gamma": ["scale", 0.01, 0.1, 1]
+    }
+]
+
+grid_search = GridSearchCV(
+    estimator=pipeline,
+    param_grid=param_grid,
+    cv=5,
+    verbose=2,
+    n_jobs=-1
+)
+
+# Randomized search (faster alternative: tests only 10 random combinations)
+corrected_param_grid = param_grid
+random_search = RandomizedSearchCV(
+    estimator=pipeline,
+    param_distributions=corrected_param_grid,
+    n_iter=10,
+    cv=3,
+    verbose=2,
+    n_jobs=-1
+)
+random_search.fit(X_train, y_train)
+
+# Full grid search
+grid_search.fit(X_train, y_train)
+print("Best Cross-Validation score:", grid_search.best_score_)
+print("Best parameters:", grid_search.best_params_)
+
+# ---------- Evaluate tuned model ----------
+best_model = grid_search.best_estimator_
+y_pred_best = best_model.predict(X_test)
+
+accuracy_tuned = accuracy_score(y_test, y_pred_best)
+precision_tuned = precision_score(y_test, y_pred_best, zero_division=0)
+recall_tuned = recall_score(y_test, y_pred_best, zero_division=0)
+f1_tuned = f1_score(y_test, y_pred_best, zero_division=0)
+
+print("Tuned Model Metrics:")
+print("Accuracy:", accuracy_tuned)
+print("Precision:", precision_tuned)
+print("Recall:", recall_tuned)
+print("F1 Score:", f1_tuned)
+
+# ---------- Final comparison ----------
+final_comparison = pd.DataFrame({
+    'Model': ['Linear SVM', 'RBF SVM', 'Tuned Model'],
+    'Accuracy': [accuracy_linear, accuracy_rbf, accuracy_tuned],
+    'Precision': [precision_linear, precision_rbf, precision_tuned],
+    'Recall': [recall_linear, recall_rbf, recall_tuned],
+    'F1 Score': [f1_linear, f1_rbf, f1_tuned]
+})
+final_comparison
